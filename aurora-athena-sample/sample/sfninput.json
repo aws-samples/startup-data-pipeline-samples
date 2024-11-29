@@ -1,0 +1,30 @@
+{
+  "Tables": [
+    {
+      "table_name": "event",
+      "condition": "starttime"
+    },
+    {
+      "table_name": "sales",
+      "condition": "saletime"
+    },
+    {
+      "table_name": "listing",
+      "condition": "listtime"
+    },
+    {
+      "table_name": "category"
+    },
+    {
+      "table_name": "date"
+    },
+    {
+      "table_name": "users"
+    },
+    {
+      "table_name": "venue"
+    }
+  ],
+  "EnableBuckup": "True",
+  "mode": "all"
+}

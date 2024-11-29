@@ -1,0 +1,28 @@
+{
+  "name": "zero-etl-sample",
+  "version": "0.1.0",
+  "bin": {
+    "zero-etl-sample": "bin/zero-etl-sample.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "20.14.9",
+    "aws-cdk": "2.149.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.5",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.5.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-rds": "^3.662.0",
+    "@aws-sdk/credential-providers": "^3.624.0",
+    "aws-cdk-lib": "2.149.0",
+    "constructs": "^10.0.0"
+  }
+}
