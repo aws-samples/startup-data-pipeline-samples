@@ -20,7 +20,9 @@
 * 分析対象のデータ量は100GBあり、Parquetファイルに圧縮後は33GBとする
 * 一日に一回更新を行う
 
-おおよその月額費用：**563.244 USD**
+おおよその月額費用：
+* 初期費用：　**71 USD** (Athenaで分析者がクエリを行わない場合の費用)
+* 従量課金込の費用：**563.244 USD**
 
 |サービス名|費用|計算|
 |---|---|---|
@@ -59,7 +61,10 @@ The 10 persons query with a full scan 10 times per day, and analyze the data on 
 * The amount of data is 100GB, and in the zipped case, it is 33GB.
 * Update data per day.
 
-Appoximatery monthly cost: **563.244 USD**
+Appoximatery monthly cost: 
+
+* Initial cost: **71 USD** (The case if you don't run queries with Athena)
+* Containing pay-as-you-go: **563.244 USD**
 
 |Service Name|Cost|Caluculate|
 |---|---|---|
