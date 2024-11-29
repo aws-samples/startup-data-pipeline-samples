@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-rds": "^3.662.0",
+    "@aws-sdk/client-redshift-serverless": "^3.699.0",
     "@aws-sdk/credential-providers": "^3.624.0",
     "aws-cdk-lib": "2.149.0",
     "constructs": "^10.0.0"
