@@ -11,9 +11,9 @@
    * S3 Exportの仕様上、Export対象は全データとなります
 2. Amazon Athenaでクエリを行えるようにAWS GlueのCrawlerを利用して、TemporaryTable を作成します。
    * このTemporary Tableはデータのロードごとに削除されます
-3. TableごとにTableのレコードのtimestamp情報を読み取り、差分更新分を検索し S3 にExportします
-4. AWS Glue Crawlerを利用して、差分データを MasterTable に更新します
-5. Athena および QuickSight で MasterTable にクエリをかけます
+3. dbtを利用して、modelの定義に沿ってMartテーブルを更新します
+   * サンプルでは、タイムスタンプ情報をよみとり差分データをInsertします
+4. Athena および QuickSight で MasterTable にクエリをかけます
 
 
 1日に10人が10回ほどフルスキャンでクエリし、QuickSight上でデータを分析するケースを想定します。  
@@ -49,9 +49,9 @@ This sample describes how to build a pipeline for querying data from RDS on Athe
 1. Export the data from Amazon Aurora to S3 using S3 Export.
    * Determined by S3 Export specificationm, the all data is exported. 
 2. Create a temporary table through the AWS Glue crawler for querying on Amazon Athena.
-3. Read the timestamp from the table records and export the difference data to S3.
-4. Update the master table using the AWS Glue crawler.
-5. Query the master table on Amazon Athena or Amazon QuickSight.
+3. Transport data with dbt
+   * In this sample, read the timestamp from the table records and export the difference data to S3.
+4. Query the master table on Amazon Athena or Amazon QuickSight.
 
 
 ## Pricing example
