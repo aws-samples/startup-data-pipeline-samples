@@ -1,8 +1,10 @@
 # Athenaを利用したパイプラインの構築
 ※ English follows Japanese.
 
-このサンプルは、Amazon RDSのデータをAthenaでクエリするためのパイプラインを構築します。Amazon RDSからS3 Exportを利用して差分抽出を行い、Amazon Athenaでクエリを行うことができるようになります。Amazon Athenaで構築した基盤をベースにAmazon QuickSightで分析します。
+このサンプルは、Amazon RDSのデータをAthenaでクエリするためのパイプラインを構築します。Amazon RDSからS3 Exportを利用して差分抽出を行い、Amazon Athenaでクエリを行うことができるようになります。Amazon Athenaで構築した基盤をベースにAmazon QuickSightで分析します。このサンプルでは[dbt(https://docs.getdbt.com/)]を利用したデータモデリング構成をベースにしたパイプラインを提供します。
 
+※ CAUTION ※
+このサンプルは、公開したバージョン()から破壊的変更が発生しています。以前のバージョンを利用している場合は、こちらのバージョンをご利用ください。
 
 ## Architecture
 ![arch](./doc/image/image1.jpg)
@@ -41,7 +43,7 @@
 
 # The pipeline from Amazon RDS through Amazon Athena
 
-This sample describes how to build a pipeline for querying data from RDS on Athena. You can export data from RDS to S3, query the data on Athena, and visualize it on Amazon QuickSight.
+This sample describes how to build a pipeline for querying data from RDS on Athena. You can export data from RDS to S3, query the data on Athena, and visualize it on Amazon QuickSight.　This sample provides a pipeline based on the data modeling configuration using [dbt](https://docs.getdbt.com/).
 
 ## Architecture
 ![arch](./doc/image/image1.jpg)
