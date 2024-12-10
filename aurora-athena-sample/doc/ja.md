@@ -13,7 +13,6 @@
 |dbClusterName|RDSのクラスター名|必須|
 |dbName|RDSのデータベース名|必須|
 |schemaName|対象のRDSのスキーマ名|必須|
-|tables|RDSの対象のテーブル名と差分抽出用のタイムスタンプが含まれる列名(※)|必須|
 |sampleDataBucketName|RDS取り込む用のサンプルデータ|必須|
 |snapshotS3BucketName|S3Exportおよび実データの出力バケット|必須|
 |s3ExportPrefix|S3Exportのデータ出力先パス|必須|
@@ -48,8 +47,8 @@ cdk deploy --all
    7. `sample/setupdata.sql` のSQL文を入力すると、データベース、テーブル、およびデータの挿入が実行されます
 
 
-5. RDSのデータを全ロードする。  
-デフォルトは差分更新モードになっていますが、RDSのデータを全ロードするオプションがあります。初回はこちらを利用して、データの全ロードを行います。
+
+TIPS: このパイプラインはEventBridgeをトリガーに定期実行しますが、手動でも実行することができます。
 
    1. AWS Management Console上で、StepFunctionサービスを開く
    ![1](./image/image2.png)
@@ -57,47 +56,20 @@ cdk deploy --all
    2. `SampleAthenaPipeline`から始まるステートマシーンを選択する
     ![1](./image/image3.png)
 
-   3. `sample/sfninput.json` を参考に、JSONをInputとして入力し、"Start Execution"を押下する
+   3. 以下のJSONをInputとして入力し、"Start Execution"を押下する
 
    ```
    {
-    "Tables": [
-      {
-        "table_name": "event",
-        "condition": "starttime"
-      },
-      ...
-    ],
     "EnableBuckup": "True",
-    "mode": "all"
     }
    ```
-   ![1](./image/image5.png)
    4. Athenaでクエリできれば完了です。
    ![1](./image/image14.png)
-
-補足：手動で差分更新を行いたい場合  
-手順5の全ロードするケースで入力したパラメーターのうち、modeを `diff`に変更してStepFunctionのステートマシーンを実行すると手動で差分更新ができます。 
-
-```
-   {
-    "Tables": [
-      {
-        "table_name": "event",
-        "condition": "starttime"
-      },
-      ...
-    ],
-    "EnableBuckup": "True",
-    "mode": "diff"
-    }
-   ```
 
 
 ### Amazon QuickSightの設定
 
 Amazon QuickSightのアカウント作成をされていない方はこちらをご参照ください。
-
 https://docs.aws.amazon.com/ja_jp/quicksight/latest/user/signing-up.html
 
 1. Amazon QuickSightに管理者としてログインする
@@ -105,7 +77,7 @@ https://docs.aws.amazon.com/ja_jp/quicksight/latest/user/signing-up.html
 ![1](./image/image13.png)
 3. S3を選択肢し、対象のS3Bucketのアクセス権限を付与する
 ![1](./image/image10.png)
-4. トップに戻り、データソースの作成をデータソースにAthenaを設定する
+4. トップに戻り、サイドバーのデータセットをクリックし、「データセットの作成」> 「Athena」をクリックします
 ![1](./image/image6.png)
 5. 対象のワークグループ、作成されたGlueデータベース（PIPELINE名と同一です）、対象のテーブルを選択します
 ![1](./image/image8.png)
@@ -114,14 +86,64 @@ https://docs.aws.amazon.com/ja_jp/quicksight/latest/user/signing-up.html
 ![1](./image/image11.png)
 ![1](./image/image12.png)
 
-## テーブルの抽出条件を変えたい場合
-データの抽出は `lambda/extract-diff-data/index.py` にて変更可能です。デフォルトでは実行時間から1日間に遡って対象のデータをクエリします。
+## テーブルを変更したい場合
+このパイプラインは、dbtを利用したテーブルの[モデル定義](../dbt-container/dbt/models/)を行っています。テーブルを変更したい場合は、dbtのmodelの作成方法に従ってテーブルを定義してください。また、このサンプルでは差分更新を `incremental` materializationを利用しています。差分のロジックを更新したい場合は、 `is_incremental` 配下の `WHERE` 文を更新してください。詳しくは、dbt labsのdocumentの[こちら](https://docs.getdbt.com/docs/build/materializations)をご参照ください。
 
 ```
-SELECT * FROM "{SCHEMA_NAME}_{table_name}" where "{condition}" > cast('{conditon_date}' as timestamp)
+{{
+    config (
+        materialized = 'incremental',
+        unique_key = 'starttime'
+    )
+}}
+select
+    *
+from {{ source('raw','demodb_event') }}
+{%- if is_incremental() %}
+    where starttime > cast((select max(starttime) from {{ this }}) as timestamp)
+{%- endif %}
 ```
+
 ## データの加工をしたい場合
-`lambda/extract-diff-data/index.py`上のUNLOAD箇所を増やすことでデータの加工プロセスを増やすことができます。その際、masterテーブル用のCrawlerのDataSourceも正しいか確認してください。
+dbtを利用して、既存のテーブルを統合して新たなテーブルを作成するなどの加工処理を行うことができます。このようなMartDataを作成したい場合は、dbtのmodelを新たに追加することでMartTableを作成することができます。
+
+`dbt-container/dbt/soldnum.sql`の例
+
+```
+with sales as (
+
+    select * from {{source('raw','demodb_sales') }}
+
+),
+
+users as (
+
+    select * from {{source('raw','demodb_users') }}
+
+),
+
+rawdate as (
+
+    select * from {{source('raw','demodb_date') }}
+
+),
+
+sales_per_users as (
+    select
+        sellerid,
+        username,
+        city, 
+        sum(qtysold) as qtysoldsum
+
+    from sales, rawdate, users
+    where sales.sellerid = users.userid
+    and sales.dateid = rawdate.dateid
+    group by sellerid, username, city
+)
+
+
+select * from sales_per_users
+```
 
 ## 環境の削除
 

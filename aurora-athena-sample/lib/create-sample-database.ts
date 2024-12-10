@@ -30,7 +30,6 @@ export class SampleDataSourceStack extends Stack {
         mapPublicIpOnLaunch: false
         },
       ]
-      
     });
 
 

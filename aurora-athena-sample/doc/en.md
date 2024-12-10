@@ -12,7 +12,6 @@
 |dbClusterName|The name of database cluster|Yes|
 |dbName|The name of database|Yes|
 |schemaName|The name of schema|Yes|
-|tables|The name of tables, and the columns containing timestamp for extracting difference from before.(※)|Yes|
 |sampleDataBucketName|The bucket where the sample data for RDS is uploaded. |Yes|
 |snapshotS3BucketName|The bucket where the snapshot data is saved. |Yes|
 |s3ExportPrefix|The path where the data is exported. |Yes|
@@ -42,7 +41,10 @@ cdk deploy --all
    7. Execute the SQL in the `sample/setupdata.sql` file. The database, table, and data insertion will be started.
 
 
-5. Upload the all of data from Amazon RDS.
+
+TIPS: This sample provide the option updating data manually.
+
+1. Upload the all of data from Amazon RDS.
 This sample has an option to upload all the data from RDS. When you deploy, you can use this to upload the data initially.
 
    1. Open the AWS Step Functions Service page in the AWS Management Console.
@@ -54,47 +56,90 @@ This sample has an option to upload all the data from RDS. When you deploy, you 
    3. Enter the config JSON (the following example)as INPUT referring to `sample/sfninput.json` , Click "Start Execution".
    ```
    {
-    "Tables": [
-      {
-        "table_name": "event",
-        "condition": "starttime"
-      },
-      ...
-    ],
-    "EnableBuckup": "True",
-    "mode": "all"
+    "EnableBuckup": "True"
     }
    ```
-   ![1](./image/image5.png)
     4. Review querting on Athena.
     ![1](./image/image14.png)
 
-TIPS: The case that you want to update the data differency.
-You can update the data difference by changing the 'mode' parameter to `diff` and executing the state machine.
 
-```
-{
-    "Tables": [
-        {
-        "table_name": "event",
-        "condition": "starttime"
-        },
-        ...
-    ],
-    "EnableBuckup": "True",
-    "mode": "diff"
-}
-```
 
 ## Setup visualisations on Amazon QuickSight
+If you have not created Amazon QuickSight account yet, please refer to bellow document.
+https://docs.aws.amazon.com/ja_jp/quicksight/latest/user/signing-up.html
 
-WIP
+1. Login Amazon QuickSight as admin user.
+2. Click "Manage QuickSight" > "Security & Permissions" > "QuickSight access to AWS services", and "Manage"
+![1](./image/image13.png)
+3. Select S3, and attach the authorization to target bucket.
+![1](./image/image10.png)
+4. Back to the top page, Click "Datasets" > "New Dataset" > "Athena" 
+![1](./image/image6.png)
+5. Select Workgroup, Glue database, table. 
+![1](./image/image8.png)
+
+6. You will be able to create dashboard after creating dataset.
+![1](./image/image11.png)
+![1](./image/image12.png)
+
 
 ## The case of changing the condition of extracting data
-WIP
+This pipeline utilizes dbt to define [table models](../dbt-container/dbt/models/). If you wish to modify the tables, please define the tables according to the dbt model creation method. Additionally, this sample uses `incremental` materialization for delta updates. If you need to update the delta logic, please update the `WHERE` clause under `is_incremental`. For more details, please refer to the dbt labs documentation [here](https://docs.getdbt.com/docs/build/materializations).
+
+```
+{{
+    config (
+        materialized = 'incremental',
+        unique_key = 'starttime'
+    )
+}}
+select
+    *
+from {{ source('raw','demodb_event') }}
+{%- if is_incremental() %}
+    where starttime > cast((select max(starttime) from {{ this }}) as timestamp)
+{%- endif %}
+```
 
 ## The case of adding the data process
-WIP
+You can use dbt to integrate existing tables and create new tables, as well as perform other processing tasks. If you want to create a MartData, you can add a new dbt model to create a MartTable.
+
+
+```
+with sales as (
+
+    select * from {{source('raw','demodb_sales') }}
+
+),
+
+users as (
+
+    select * from {{source('raw','demodb_users') }}
+
+),
+
+rawdate as (
+
+    select * from {{source('raw','demodb_date') }}
+
+),
+
+sales_per_users as (
+    select
+        sellerid,
+        username,
+        city, 
+        sum(qtysold) as qtysoldsum
+
+    from sales, rawdate, users
+    where sales.sellerid = users.userid
+    and sales.dateid = rawdate.dateid
+    group by sellerid, username, city
+)
+
+
+select * from sales_per_users
+```
 
 ## Destroy environment
 

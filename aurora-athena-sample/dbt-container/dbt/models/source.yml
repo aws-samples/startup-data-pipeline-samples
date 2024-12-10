@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: raw
+    database: AwsDataCatalog
+    schema: sample_ticket_database
+    tables: 
+      - name: demodb_sales
+      - name: demodb_event
+      - name: demodb_users
+      - name: demodb_date
+      - name: demodb_venue
+      - name: demodb_category
+      - name: demodb_listing
+  
+  

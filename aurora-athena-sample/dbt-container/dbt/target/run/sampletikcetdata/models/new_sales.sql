@@ -1,0 +1,1 @@
+SELECT '{"rowcount":43435,"data_scanned_in_bytes":1113788}';

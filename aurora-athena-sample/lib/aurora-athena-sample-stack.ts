@@ -1,11 +1,15 @@
-import { Duration, Stack, StackProps, RemovalPolicy } from 'aws-cdk-lib';
+import { Duration, Stack, StackProps, RemovalPolicy, SecretValue} from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as glue from 'aws-cdk-lib/aws-glue';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as athena from 'aws-cdk-lib/aws-athena';
 import * as kms from 'aws-cdk-lib/aws-kms';
-import * as events from 'aws-cdk-lib/aws-events'
+import * as events from 'aws-cdk-lib/aws-events';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { SfnStateMachine } from 'aws-cdk-lib/aws-events-targets';
 
 import { Construct } from 'constructs';
@@ -35,7 +39,7 @@ export interface AthenaPipelineStackProps extends StackProps {
   /**
    * Name of the tables that are import target.
    */
-  readonly targetTables: Array<any>;
+  // readonly targetTables: Array<any>;
 
   /**
    * Flag whether the data should be saved in S3.
@@ -61,6 +65,8 @@ export interface AthenaPipelineStackProps extends StackProps {
    * The schedule of loading data.
    */
   readonly loadSchedule: any;
+
+  readonly clusterVpcId: string;
 
 };
 
@@ -207,14 +213,6 @@ export class AthenaPipelineStack extends Stack {
       recrawlBehavior: 'CRAWL_EVERYTHING',
     };
 
-    const crawlconf = {
-      "Version": 1.0,
-      "CrawlerOutput": {
-        "Partitions": { "AddOrUpdateBehavior": "InheritFromTable" }
-      }
-    }
-    const crawconfjson = JSON.stringify(crawlconf);
-
     const exportedDataCrawler = new glue.CfnCrawler(this, "SnapshotExportCrawler", {
       name: props.pipelineName + "-rds-snapshot-crawler",
       role: snapshotExportGlueCrawlerRole.roleArn,
@@ -232,31 +230,6 @@ export class AthenaPipelineStack extends Stack {
         updateBehavior: 'LOG'
       },
       recrawlPolicy: recrawlPolicyProperty
-    });
-
-    const masterRecrawlPolicyProperty: glue.CfnCrawler.RecrawlPolicyProperty = {
-      recrawlBehavior: 'CRAWL_NEW_FOLDERS_ONLY',
-    };
-
-    const targets = props.targetTables.map(table => {
-      return {
-        path: `${bucket.bucketName}/${props.dbName}/${table["table_name"]}`,
-        exclusions: ['**.json'],
-      }
-    })
-    const masterDataCrawler = new glue.CfnCrawler(this, "MasterDataCrawler", {
-      name: props.pipelineName + "-master-crawler",
-      role: snapshotExportGlueCrawlerRole.roleArn,
-      targets: {
-        s3Targets:targets
-      },
-      databaseName: props.pipelineName.replace(/[^a-zA-Z0-9_]/g, "_"),
-      configuration: crawconfjson,
-      schemaChangePolicy: {
-        deleteBehavior: 'LOG',
-        updateBehavior: 'LOG'
-      },
-      recrawlPolicy: masterRecrawlPolicyProperty
     });
 
 
@@ -324,6 +297,138 @@ export class AthenaPipelineStack extends Stack {
       },
       timeout: Duration.minutes(15),
     })
+
+    /**
+     * Create transport process with dbt 
+     */
+    const user = new iam.User(this, 'dbtuser');
+    user.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonAthenaFullAccess'))
+    user.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSGlueConsoleFullAccess'))
+    user.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      resources: [`${bucket.bucketArn}`, `${bucket.bucketArn}/*`,],
+      actions:["s3:*"]
+    }))
+
+    snapshotExportEncryptionKey.addToResourcePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:DescribeKey"],
+      resources: ["*"],
+      principals: [user]
+    }))
+
+    user.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      resources: [`${athenaQueryResultBucket.bucketArn}`, `${athenaQueryResultBucket.bucketArn}/*`,],
+      actions:[
+        "s3:GetBucketLocation",
+        "s3:GetObject",
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads",
+        "s3:ListMultipartUploadParts",
+        "s3:AbortMultipartUpload",
+        "s3:CreateBucket",
+        "s3:PutObject",
+        "s3:PutBucketPublicAccessBlock"
+      ]
+    }))
+
+    const accessKey = new iam.AccessKey(this, 'AccessKey', { user });
+    const accessKeyId = new secretsmanager.Secret(this, 'AwsAccessKeyId', {
+        secretStringValue:SecretValue.unsafePlainText(accessKey.accessKeyId)
+      }
+    )
+    const secretAccessKey = new secretsmanager.Secret(this, 'AwsSecretAccessKey', {
+      secretStringValue:accessKey.secretAccessKey
+    }
+  )
+
+    const taskRole = new iam.Role(this, "DbtContainer", {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com')
+    });
+
+    const ecrPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      resources: ['*'],
+      actions: [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+    });
+
+    const secretPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      resources: [secretAccessKey.secretArn],
+      actions: ["ssm:GetParameters", "secretsmanager:GetSecretValue", "kms:Decrypt"]
+    })
+    taskRole.addToPolicy(ecrPolicy)
+    taskRole.addToPolicy(secretPolicy)
+
+    const taskDef = new ecs.FargateTaskDefinition(this, "dbt-task", {
+      taskRole: taskRole,
+      runtimePlatform:{
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+      }
+    });
+    taskDef.addToExecutionRolePolicy(ecrPolicy) 
+
+    const logging = new ecs.AwsLogDriver({
+      streamPrefix: "dbt-task-logs"
+    });   
+
+    taskDef.addContainer('dbt-container', {
+      image: ecs.ContainerImage.fromAsset("dbt-container"),
+      memoryLimitMiB: 256,
+      cpu: 256,
+      secrets: {
+        "AWS_ACCESS_KEY_ID": ecs.Secret.fromSecretsManager(accessKeyId),
+        "AWS_SECRET_ACCESS_KEY":  ecs.Secret.fromSecretsManager(secretAccessKey)
+      },
+      logging
+    });
+
+    const vpc = ec2.Vpc.fromLookup(this, 'vpc', {
+      vpcId: props.clusterVpcId
+    });
+
+
+    if (!vpc) {
+      throw new Error('VPC ID must be provided in the context. Use -c vpcId=<your-vpc-id> when deploying.');
+    }
+    
+    vpc.addInterfaceEndpoint("scm-endpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER
+    })
+
+    vpc.addInterfaceEndpoint("ecr-endpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.ECR
+    })
+
+    vpc.addInterfaceEndpoint("ecr-dkr-endpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER
+    })
+
+    vpc.addInterfaceEndpoint("logs-endpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS
+    })
+
+    vpc.addInterfaceEndpoint("glue-endpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.GLUE
+    })
+
+    vpc.addInterfaceEndpoint("sts-endpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.STS
+    })
+
+
+    const cluster = new ecs.Cluster(this, 'FargateCPCluster', {
+      vpc
+    });
 
 
     /**
@@ -430,25 +535,16 @@ export class AthenaPipelineStack extends Stack {
       resultPath: '$.CrawlerStatus'
     })
 
-    const crawlMasterData = new sfntasks.LambdaInvoke(this, 'CrawlMasterData', {
-      lambdaFunction: checkCrawlerStatus,
-      payload: sfn.TaskInput.fromObject({ 'crawler': masterDataCrawler.name }),
-      resultPath: '$.CrawlerStatus'
-    })
-
-    const extractDataTask = new sfntasks.LambdaInvoke(this, 'ExtractData', {
-      lambdaFunction: extractDiffData,
-    })
-
-    const moveAllDataTask = new sfntasks.LambdaInvoke(this, 'MoveAllDataTask', {
-      lambdaFunction: moveAllData,
-      payload: sfn.TaskInput.fromObject(
-        {
-          "ExportTaskIdentifier": sfn.JsonPath.stringAt('$.JobInfo.Payload.ExportTaskIdentifier'),
-          "Tables": sfn.JsonPath.stringAt('$.Tables')
-        }
-      ),
-      resultPath: '$.MovedStatus'
+    const dbtDataTask = new sfntasks.EcsRunTask(this, 'RunDbtTask', {
+      integrationPattern: sfn.IntegrationPattern.RUN_JOB,
+      cluster: cluster,
+      taskDefinition: taskDef,
+      assignPublicIp: true,
+      launchTarget: new sfntasks.EcsFargateLaunchTarget(),
+      subnets:vpc.selectSubnets({
+        subnetType: ec2.SubnetType.PUBLIC,
+      }),
+      resultPath: '$.EcsTaskOutput'
     })
 
     const cleanupTask = new sfntasks.LambdaInvoke(this, 'CleanupTask', {
@@ -466,29 +562,15 @@ export class AthenaPipelineStack extends Stack {
     })
 
     const isExportCompleted = new sfn.Choice(this, 'isExportCompleted?');
-    const ifLoadingAllData = new sfn.Choice(this, 'ifLoadingAllData?');
-
-    const maps = new sfn.Map(this, 'ExtractDataMap', {
-      itemsPath: '$.Tables',
-      maxConcurrency: (props.targetTables.length),
-      resultPath: '$.mapOutput',
-      parameters: {
-        'table.$': '$$.Map.Item.Value',
-        'prefix.$': '$.JobInfo.Payload.identifier'
-      }
-    })
+  
 
     const check_status = sfn.Condition.booleanEquals('$.Status.Payload', true)
-    const is_all = sfn.Condition.stringEquals('$.mode', 'all')
-
+ 
     exportS3job.next(waitExport)
     waitExport.next(checkExportTask)
-    checkExportTask.next(isExportCompleted.when(check_status, ifLoadingAllData).otherwise(waitExport))
-    ifLoadingAllData.when(is_all, moveAllDataTask).otherwise(crawlExportedData)
-    moveAllDataTask.next(crawlMasterData)
-    crawlExportedData.next(maps.itemProcessor(extractDataTask))
-    maps.next(crawlMasterData)
-    crawlMasterData.next(cleanupTask)
+    checkExportTask.next(isExportCompleted.when(check_status, crawlExportedData).otherwise(waitExport))
+    crawlExportedData.next(dbtDataTask)
+    dbtDataTask.next(cleanupTask)
 
     const stateMachine = new sfn.StateMachine(this, 'SampleAthenaPipeline', {
       definition: exportS3job,
@@ -501,9 +583,7 @@ export class AthenaPipelineStack extends Stack {
     const sfnTarget = new SfnStateMachine(stateMachine, {
       input: events.RuleTargetInput.fromObject(
         {
-          Tables: props.targetTables,
           EnableBuckup: props.enableSaveExportedData,
-          mode: "diff"
         }),
     });
 

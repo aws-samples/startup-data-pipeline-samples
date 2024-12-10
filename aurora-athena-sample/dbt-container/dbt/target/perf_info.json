@@ -1,0 +1,51 @@
+{
+    "path_count": 138,
+    "parsed_path_count": 138,
+    "static_analysis_path_count": 1,
+    "static_analysis_parsed_path_count": 1,
+    "is_partial_parse_enabled": true,
+    "is_static_analysis_enabled": true,
+    "read_files_elapsed": 0.12655074999999982,
+    "load_macros_elapsed": 2.6138532499999982,
+    "parse_project_elapsed": 0.7121137920000038,
+    "patch_sources_elapsed": 0.013682000000002859,
+    "process_manifest_elapsed": 0.06431058399999756,
+    "load_all_elapsed": 3.965385916999999,
+    "projects": [
+        {
+            "project_name": "sampletikcetdata",
+            "elapsed": 0.6850146249999938,
+            "parsers": [
+                {
+                    "parser": "model",
+                    "elapsed": 0.44767970800000256,
+                    "parsed_path_count": 1
+                },
+                {
+                    "parser": "test",
+                    "elapsed": 0.22519050000000362,
+                    "parsed_path_count": 1
+                }
+            ],
+            "parsed_path_count": 2
+        },
+        {
+            "project_name": "dbt_athena",
+            "elapsed": 0.011092876000006413,
+            "parsers": [],
+            "parsed_path_count": 0
+        },
+        {
+            "project_name": "dbt",
+            "elapsed": 0.015831998999992436,
+            "parsers": [
+                {
+                    "parser": "doc",
+                    "elapsed": 0.0005706669999980818,
+                    "parsed_path_count": 1
+                }
+            ],
+            "parsed_path_count": 1
+        }
+    ]
+}

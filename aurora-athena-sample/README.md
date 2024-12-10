@@ -11,9 +11,9 @@
    * S3 Exportの仕様上、Export対象は全データとなります
 2. Amazon Athenaでクエリを行えるようにAWS GlueのCrawlerを利用して、TemporaryTable を作成します。
    * このTemporary Tableはデータのロードごとに削除されます
-3. dbtを利用して、modelの定義に沿ってMartテーブルを更新します
+3. dbtを利用して、modelの定義に沿ってMartTableを更新します
    * サンプルでは、タイムスタンプ情報をよみとり差分データをInsertします
-4. Athena および QuickSight で MasterTable にクエリをかけます
+4. Athena および QuickSight で MartTable にクエリをかけます
 
 
 1日に10人が10回ほどフルスキャンでクエリし、QuickSight上でデータを分析するケースを想定します。  
