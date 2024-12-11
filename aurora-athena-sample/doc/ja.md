@@ -60,7 +60,7 @@ TIPS: このパイプラインはEventBridgeをトリガーに定期実行しま
 
    ```
    {
-    "EnableBuckup": "True",
+    "EnableBuckup": "True"
     }
    ```
    4. Athenaでクエリできれば完了です。

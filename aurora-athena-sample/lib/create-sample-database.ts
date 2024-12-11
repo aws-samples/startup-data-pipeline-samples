@@ -14,6 +14,7 @@ export interface SampleDataSourceStackProps extends StackProps {
 
 export class SampleDataSourceStack extends Stack {
   readonly dbClusterIdentifer: string;
+  readonly vpc: ec2.Vpc;
 
   constructor(scope: Construct, id: string, props?: SampleDataSourceStackProps) {
     super(scope, id, props);
@@ -32,6 +33,7 @@ export class SampleDataSourceStack extends Stack {
       ]
     });
 
+    this.vpc = vpc
 
     // Aurora Security Group
     const rdssg = new ec2.SecurityGroup(this, 'RDSSG', {
@@ -90,14 +92,6 @@ export class SampleDataSourceStack extends Stack {
       false
     );
 
-    const execS3ExportRole = new iam.Role(this, "EC2InstanceRole",{
-      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com')
-    })
-
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AmazonEC2ContainerServiceforEC2Role"))
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AmazonEC2RoleforSSM"))
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"))
-    
     const userData = ec2.UserData.forLinux({ shebang: '#!/bin/bash' })
     userData.addCommands(
         'dnf update -y',
@@ -107,9 +101,9 @@ export class SampleDataSourceStack extends Stack {
       vpc:vpc,
       instanceType:ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, ec2.InstanceSize.MICRO),
       machineImage: new ec2.AmazonLinuxImage({ generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2023 }),
-      role:execS3ExportRole,
       securityGroup:accessRdsSecurityGroup,
-      userData: userData
+      userData: userData,
+      ssmSessionPermissions: true,
     });
 
 

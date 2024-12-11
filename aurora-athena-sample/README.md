@@ -1,10 +1,10 @@
 # Athenaを利用したパイプラインの構築
 ※ English follows Japanese.
 
-このサンプルは、Amazon RDSのデータをAthenaでクエリするためのパイプラインを構築します。Amazon RDSからS3 Exportを利用して差分抽出を行い、Amazon Athenaでクエリを行うことができるようになります。Amazon Athenaで構築した基盤をベースにAmazon QuickSightで分析します。このサンプルでは[dbt(https://docs.getdbt.com/)]を利用したデータモデリング構成をベースにしたパイプラインを提供します。
+このサンプルは、Amazon RDSのデータをAthenaでクエリするためのパイプラインを構築します。Amazon RDSからS3 Exportを利用して差分抽出を行い、Amazon Athenaでクエリを行うことができるようになります。Amazon Athenaで構築した基盤をベースにAmazon QuickSightで分析します。また、このサンプルではデータ変換処理に `dbt-athena`を利用しています。詳しくは[こちら](https://docs.getdbt.com/docs/core/connect-data-platform/athena-setup)。データのモデリングは、dbtの[Best practice guides](https://docs.getdbt.com/best-practices)にのっとり設計してください。
 
-※ CAUTION ※
-このサンプルは、公開したバージョン()から破壊的変更が発生しています。以前のバージョンを利用している場合は、こちらのバージョンをご利用ください。
+📣 **CAUTION** 📣
+このサンプルは、公開時点のバージョンから破壊的変更が入っています。公開時のサンプルを参照したい場合は [v0.1.0](https://github.com/aws-samples/startup-data-pipeline-samples/tree/v0.1.0)をご利用ください。
 
 ## Architecture
 ![arch](./doc/image/image1.jpg)
@@ -43,7 +43,10 @@
 
 # The pipeline from Amazon RDS through Amazon Athena
 
-This sample describes how to build a pipeline for querying data from RDS on Athena. You can export data from RDS to S3, query the data on Athena, and visualize it on Amazon QuickSight.　This sample provides a pipeline based on the data modeling configuration using [dbt](https://docs.getdbt.com/).
+This sample describes how to build a pipeline for querying data from RDS on Athena. You can export data from RDS to S3, query the data on Athena, and visualize it on Amazon QuickSight.Additionally, this sample uses `dbt-athena` for data transformation processing. For more details, please refer to [here](https://docs.getdbt.com/docs/core/connect-data-platform/athena-setup). The data modeling should be designed based on dbt's [Best practice guides](https://docs.getdbt.com/best-practices).
+
+📣 **CAUTION** 📣
+This sample has breaking changes from the version at the time of release. If you want to refer to the sample at the time of release, please use [v0.1.0](https://github.com/aws-samples/startup-data-pipeline-samples/tree/v0.1.0).
 
 ## Architecture
 ![arch](./doc/image/image1.jpg)

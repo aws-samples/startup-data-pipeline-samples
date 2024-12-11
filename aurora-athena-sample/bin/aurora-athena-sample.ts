@@ -8,7 +8,7 @@ import { config } from '../config/config';
 const app = new cdk.App();
 
 var dbClusterName = config.dbClusterName;
-
+var clusterVpc;
 if (!config.isExistDB) {
   const databaseStack = new SampleDataSourceStack(app, 'SampleDataSourceStack', {
     env: {
@@ -19,6 +19,7 @@ if (!config.isExistDB) {
     s3Bucket: config.sampleDataBucketName
   })
   dbClusterName = databaseStack.dbClusterIdentifer;
+  clusterVpc = databaseStack.vpc;
 }
 
 new AthenaPipelineStack(app, 'AuroraAthenaSampleStack', {
@@ -26,14 +27,13 @@ new AthenaPipelineStack(app, 'AuroraAthenaSampleStack', {
     account: process.env.CDK_DEFAULT_ACCOUNT, 
     region: process.env.CDK_DEFAULT_REGION 
   },
-  
   rdsClusterName: dbClusterName,
   pipelineName: config.pipelineName,
   s3BucketName: config.snapshotS3BucketName,
   s3ExportPrefix: config.s3ExportPrefix,
   dbName: config.dbName,
   schemaName: config.schemaName,
-  clusterVpcId: config.clusterVpcId,
+  clusterVpc:clusterVpc,
   enableSaveExportedData: config.enableBackupExportedData,
   loadSchedule: config.loadSchedule
 });

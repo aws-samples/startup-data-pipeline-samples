@@ -104,7 +104,7 @@ from {{ source('raw','demodb_event') }}
 ## The case of adding the data process
 You can use dbt to integrate existing tables and create new tables, as well as perform other processing tasks. If you want to create a MartData, you can add a new dbt model to create a MartTable.
 
-
+The example of `dbt-container/dbt/models/soldnum.sql`
 ```
 with sales as (
 

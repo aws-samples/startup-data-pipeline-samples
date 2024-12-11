@@ -66,7 +66,7 @@ export interface AthenaPipelineStackProps extends StackProps {
    */
   readonly loadSchedule: any;
 
-  readonly clusterVpcId: string;
+  readonly clusterVpc?: ec2.Vpc;
 
 };
 
@@ -84,6 +84,8 @@ export class AthenaPipelineStack extends Stack {
     const bucket = new s3.Bucket(this, "SnapshotExportBucket", {
       bucketName: props.s3BucketName,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
     });
 
 
@@ -93,6 +95,7 @@ export class AthenaPipelineStack extends Stack {
       {
         bucketName: `athena-query-result-${this.account}`,
         removalPolicy: RemovalPolicy.DESTROY,
+        autoDeleteObjects: true,
       }
     );
 
@@ -256,49 +259,6 @@ export class AthenaPipelineStack extends Stack {
 
 
     /**
-     * Create Lamnda function extract difference data.
-     */
-    const extractDiffDataRole = new iam.Role(this, "ExtractDiffDataRole", {
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com")
-    });
-    bucket.grantReadWrite(extractDiffDataRole)
-    athenaQueryResultBucket.grantReadWrite(extractDiffDataRole)
-
-
-    extractDiffDataRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      resources: ["*"],
-      actions: ["glue:GetDatabases", "glue:GetDatabase", "glue:GetTables", "glue:GetPartitions", "glue:GetPartition", "glue:GetTable"]
-    }))
-
-
-    snapshotExportEncryptionKey.addToResourcePolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ["kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:DescribeKey"],
-      resources: ["*"],
-      principals: [extractDiffDataRole]
-    }))
-    extractDiffDataRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonAthenaFullAccess"))
-    extractDiffDataRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"))
-
-
-    const extractDiffData = new lambda.Function(this, 'ExtractDiffData', {
-      code: lambda.Code.fromAsset('lambda/extract-diff-data'),
-      runtime: lambda.Runtime.PYTHON_3_10,
-      handler: 'index.handler',
-      role: extractDiffDataRole,
-      environment: {
-        DB_NAME: props.dbName,
-        GLUE_DATABASE: props.pipelineName,
-        S3_BUCKET: props.s3BucketName,
-        ATHENA_OUTPUT_BUCKET: athenaQueryResultBucket.bucketName,
-        SCHEMA_NAME:props.schemaName,
-        ATHENA_WORKGROUP: 'athenaWorkGroup'
-      },
-      timeout: Duration.minutes(15),
-    })
-
-    /**
      * Create transport process with dbt 
      */
     const user = new iam.User(this, 'dbtuser');
@@ -392,13 +352,28 @@ export class AthenaPipelineStack extends Stack {
       logging
     });
 
-    const vpc = ec2.Vpc.fromLookup(this, 'vpc', {
-      vpcId: props.clusterVpcId
-    });
+    var vpc;
 
+    if(props.clusterVpc){
+      vpc = props.clusterVpc
+    } else {
+      vpc = new ec2.Vpc(this, 'ECSVpc', {
+        subnetConfiguration: [
+          {
+          name: "private",
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          },
+          {
+          name: "public",
+          subnetType: ec2.SubnetType.PUBLIC,
+          mapPublicIpOnLaunch: false
+          },
+        ]
+      })
+    }
 
     if (!vpc) {
-      throw new Error('VPC ID must be provided in the context. Use -c vpcId=<your-vpc-id> when deploying.');
+      throw new Error('VPC ID must be provided in the context.');
     }
     
     vpc.addInterfaceEndpoint("scm-endpoint", {
@@ -432,43 +407,6 @@ export class AthenaPipelineStack extends Stack {
 
 
     /**
-     * Create Lamnda function moving exported data (All data load mode)
-     */
-    const moveAllDataRole = new iam.Role(this, "MoveAllDataRole", {
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    })
-
-    moveAllDataRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      resources: ["*"],
-      actions: ["glue:GetDatabases", "glue:GetDatabase", "glue:GetTables", "glue:GetPartitions", "glue:GetPartition", "glue:GetTable"]
-    }))
-
-    snapshotExportEncryptionKey.addToResourcePolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ["kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:DescribeKey"],
-      resources: ["*"],
-      principals: [moveAllDataRole]
-    }))
-    moveAllDataRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"))
-    bucket.grantReadWrite(moveAllDataRole)
-
-    const moveAllData = new lambda.Function(this, 'MoveAllData', {
-      code: lambda.Code.fromAsset('lambda/init'),
-      runtime: lambda.Runtime.PYTHON_3_10,
-      handler: 'index.handler',
-      role: moveAllDataRole,
-      environment: {
-        PIPELINE_NAME: props.pipelineName,
-        S3_BUCKET: props.s3BucketName,
-        S3_PREFIX: props.s3ExportPrefix,
-        DB_NAME: props.dbName,
-        SCHEMA_NAME: props.schemaName
-      },
-      timeout: Duration.minutes(15),
-    })
-
-    /**
      * Athena database
      */
     new athena.CfnWorkGroup(this, 'athenaWorkGroup', {
@@ -498,11 +436,35 @@ export class AthenaPipelineStack extends Stack {
      * Create Lamnda function cleaning resource
      */
 
+    const cleanupRole = new iam.Role(this, "ExtractDiffDataRole", {
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com")
+    });
+    bucket.grantReadWrite(cleanupRole)
+    athenaQueryResultBucket.grantReadWrite(cleanupRole)
+
+
+    cleanupRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      resources: ["*"],
+      actions: ["glue:GetDatabases", "glue:GetDatabase", "glue:GetTables", "glue:GetPartitions", "glue:GetPartition", "glue:GetTable"]
+    }))
+
+
+    snapshotExportEncryptionKey.addToResourcePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:DescribeKey"],
+      resources: ["*"],
+      principals: [cleanupRole]
+    }))
+    cleanupRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonAthenaFullAccess"))
+    cleanupRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"))
+    
+
     const cleanup = new lambda.Function(this, 'Cleanup', {
       code: lambda.Code.fromAsset('lambda/cleanup-resource'),
       runtime: lambda.Runtime.PYTHON_3_10,
       handler: 'index.handler',
-      role: extractDiffDataRole,
+      role: cleanupRole,
       environment: {
         DB_NAME: props.pipelineName,
         S3_BUCKET: props.s3BucketName,
