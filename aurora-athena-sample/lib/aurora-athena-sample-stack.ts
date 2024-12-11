@@ -349,6 +349,10 @@ export class AthenaPipelineStack extends Stack {
         "AWS_ACCESS_KEY_ID": ecs.Secret.fromSecretsManager(accessKeyId),
         "AWS_SECRET_ACCESS_KEY":  ecs.Secret.fromSecretsManager(secretAccessKey)
       },
+      environment: {
+        "S3_BUCKET": `s3://${bucket.bucketName}/`,
+        "S3_ATHENA_LOG_BUCKET": `s3://${athenaQueryResultBucket.bucketName}/result-data/`
+      },
       logging
     });
 
