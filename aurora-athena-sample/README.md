@@ -1,8 +1,10 @@
 # Athenaを利用したパイプラインの構築
 ※ English follows Japanese.
 
-このサンプルは、Amazon RDSのデータをAthenaでクエリするためのパイプラインを構築します。Amazon RDSからS3 Exportを利用して差分抽出を行い、Amazon Athenaでクエリを行うことができるようになります。Amazon Athenaで構築した基盤をベースにAmazon QuickSightで分析します。
+このサンプルは、Amazon RDSのデータをAthenaでクエリするためのパイプラインを構築します。Amazon RDSからS3 Exportを利用して差分抽出を行い、Amazon Athenaでクエリを行うことができるようになります。Amazon Athenaで構築した基盤をベースにAmazon QuickSightで分析します。また、このサンプルではデータ変換処理に `dbt-athena`を利用しています。詳しくは[こちら](https://docs.getdbt.com/docs/core/connect-data-platform/athena-setup)。データのモデリングは、dbtの[Best practice guides](https://docs.getdbt.com/best-practices)にのっとり設計してください。
 
+📣 **CAUTION** 📣
+このサンプルは、公開時点のバージョンから破壊的変更が入っています。公開時のサンプルを参照したい場合は [v0.1.0](https://github.com/aws-samples/startup-data-pipeline-samples/tree/v0.1.0)をご利用ください。
 
 ## Architecture
 ![arch](./doc/image/image1.jpg)
@@ -11,9 +13,9 @@
    * S3 Exportの仕様上、Export対象は全データとなります
 2. Amazon Athenaでクエリを行えるようにAWS GlueのCrawlerを利用して、TemporaryTable を作成します。
    * このTemporary Tableはデータのロードごとに削除されます
-3. TableごとにTableのレコードのtimestamp情報を読み取り、差分更新分を検索し S3 にExportします
-4. AWS Glue Crawlerを利用して、差分データを MasterTable に更新します
-5. Athena および QuickSight で MasterTable にクエリをかけます
+3. dbtを利用して、modelの定義に沿ってMartTableを更新します
+   * サンプルでは、タイムスタンプ情報をよみとり差分データをInsertします
+4. Athena および QuickSight で MartTable にクエリをかけます
 
 
 1日に10人が10回ほどフルスキャンでクエリし、QuickSight上でデータを分析するケースを想定します。  
@@ -41,7 +43,10 @@
 
 # The pipeline from Amazon RDS through Amazon Athena
 
-This sample describes how to build a pipeline for querying data from RDS on Athena. You can export data from RDS to S3, query the data on Athena, and visualize it on Amazon QuickSight.
+This sample describes how to build a pipeline for querying data from RDS on Athena. You can export data from RDS to S3, query the data on Athena, and visualize it on Amazon QuickSight.Additionally, this sample uses `dbt-athena` for data transformation processing. For more details, please refer to [here](https://docs.getdbt.com/docs/core/connect-data-platform/athena-setup). The data modeling should be designed based on dbt's [Best practice guides](https://docs.getdbt.com/best-practices).
+
+📣 **CAUTION** 📣
+This sample has breaking changes from the version at the time of release. If you want to refer to the sample at the time of release, please use [v0.1.0](https://github.com/aws-samples/startup-data-pipeline-samples/tree/v0.1.0).
 
 ## Architecture
 ![arch](./doc/image/image1.jpg)
@@ -49,9 +54,9 @@ This sample describes how to build a pipeline for querying data from RDS on Athe
 1. Export the data from Amazon Aurora to S3 using S3 Export.
    * Determined by S3 Export specificationm, the all data is exported. 
 2. Create a temporary table through the AWS Glue crawler for querying on Amazon Athena.
-3. Read the timestamp from the table records and export the difference data to S3.
-4. Update the master table using the AWS Glue crawler.
-5. Query the master table on Amazon Athena or Amazon QuickSight.
+3. Transport data with dbt
+   * In this sample, read the timestamp from the table records and export the difference data to S3.
+4. Query the master table on Amazon Athena or Amazon QuickSight.
 
 
 ## Pricing example
