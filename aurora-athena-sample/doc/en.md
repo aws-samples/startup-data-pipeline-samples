@@ -142,14 +142,10 @@ select * from sales_per_users
 ```
 
 ## Destroy environment
-
-1. Delete the bucket where the outputs of quering on athena was saved
-Open the Amazon S3 Service page from Management console, select the bucket starting with `AthenaQueryResultBucket` , and click `Empty`
-
-2. Delete the Glue tables
+1. Delete the Glue tables
 Open the AWS Glue Page and tables section. Delete the tables created by this pipeline.
 
-3. Run the following command.
+2. Run the following command.
 
 
 ```

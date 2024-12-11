@@ -147,13 +147,10 @@ select * from sales_per_users
 
 ## 環境の削除
 
-1. AthenaのQuery出力用のバケット内の出力データを削除する。
-Management Consoleから、S3のサービスページを開き、 `AthenaQueryResultBucket` から始まるバケットを選択して `Empty`をクリックします。
-
-2. Glueのテーブルを削除します  
+1. Glueのテーブルを削除します  
 Management Consoleから、Glueのサービスページを開き、Tables セクションを開きます。削除対象のテーブルを選択し、Deleteする。
 
-3. 以下のコマンドで環境を削除する
+2. 以下のコマンドで環境を削除する
 
 ```
 cdk destroy --all
