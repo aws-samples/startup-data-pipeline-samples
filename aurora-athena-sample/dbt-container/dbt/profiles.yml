@@ -1,0 +1,15 @@
+sampletikcetdata:
+  target: athena
+  outputs:
+    athena:
+      database: AwsDataCatalog
+      region_name: us-west-2
+      s3_data_dir: s3://sample-snapshot-bucket/
+      s3_staging_dir: s3://athena-query-result-953891383645/result-data/
+      # s3_data_naming: sample_ticket_database
+      threads: 1
+      type: athena
+      workgroup: athenaWorkGroup
+      schema: sample_ticket_database
+      aws_access_key_id: "{{ env_var('AWS_ACCESS_KEY_ID') }}" 
+      aws_secret_access_key: "{{ env_var('AWS_SECRET_ACCESS_KEY') }}" 
