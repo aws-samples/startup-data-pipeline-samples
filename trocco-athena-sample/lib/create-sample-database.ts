@@ -33,14 +33,6 @@ export class SampleDataSourceForTroccoStack extends Stack {
       vpc,
     });
     
-    const execS3ExportRole = new iam.Role(this, "EC2InstanceRole",{
-      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com')
-    })
-
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AmazonEC2ContainerServiceforEC2Role"))
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AmazonEC2RoleforSSM"))
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"))
-    
     const userData = ec2.UserData.forLinux({ shebang: '#!/bin/bash' })
     userData.addCommands(
         'dnf update -y',
@@ -52,7 +44,8 @@ export class SampleDataSourceForTroccoStack extends Stack {
       instanceType:ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, ec2.InstanceSize.MICRO),
       machineImage: new ec2.AmazonLinuxImage({ generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2023 }),
       securityGroup:accessRdsSecurityGroup,
-      userData: userData
+      userData: userData,
+      ssmSessionPermissions: true
     });
 
     
