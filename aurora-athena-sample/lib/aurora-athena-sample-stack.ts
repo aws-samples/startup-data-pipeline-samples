@@ -44,7 +44,7 @@ export interface AthenaPipelineStackProps extends StackProps {
   /**
    * Flag whether the data should be saved in S3.
    */
-  readonly enableSaveExportedData: Boolean;
+  readonly enableSaveExportedData: boolean;
 
   /**
    * Name of the RDS Cluster.
@@ -64,7 +64,7 @@ export interface AthenaPipelineStackProps extends StackProps {
   /**
    * The schedule of loading data.
    */
-  readonly loadSchedule: any;
+  readonly loadSchedule: {[key:string]:string};
 
   readonly clusterVpc?: ec2.Vpc;
 
@@ -356,7 +356,7 @@ export class AthenaPipelineStack extends Stack {
       logging
     });
 
-    var vpc;
+    let vpc;
 
     if(props.clusterVpc){
       vpc = props.clusterVpc
@@ -424,7 +424,7 @@ export class AthenaPipelineStack extends Stack {
     });
 
     // Athena DataCatalog
-    const cfnDataCatalog = new athena.CfnDataCatalog(this, 'AuroraDataCatalog', {
+    new athena.CfnDataCatalog(this, 'AuroraDataCatalog', {
       name: 'AuroraDataCatalog',
       type: 'GLUE',
 
