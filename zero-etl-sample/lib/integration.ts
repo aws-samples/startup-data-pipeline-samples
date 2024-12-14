@@ -1,4 +1,4 @@
-import { Stack, StackProps, custom_resources as cr, aws_rds as classicrds } from 'aws-cdk-lib';
+import { Stack, StackProps, aws_rds as classicrds } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 import * as rds from 'aws-cdk-lib/aws-rds';
@@ -32,7 +32,7 @@ export class ZeroEtlIntegrationStack extends Stack {
     /** 
      * Create Ingestion
      */
-    const cfnIntegration = new classicrds.CfnIntegration(this, 'CreateIngestion', {
+    new classicrds.CfnIntegration(this, 'CreateIngestion', {
       sourceArn: props!.dbClusterArn,
       targetArn: this.formatArn({
         service: 'redshift-serverless',

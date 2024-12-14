@@ -1,5 +1,5 @@
 
-import { Stack, StackProps, custom_resources as cr, aws_rds as classicrds } from 'aws-cdk-lib';
+import { Stack, StackProps, custom_resources as cr } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as rds from 'aws-cdk-lib/aws-rds';
@@ -29,7 +29,7 @@ export class RedshiftStack extends Stack {
 
         if (props.redshiftNameSpaceId == undefined || props.redshiftWorkSpace == undefined) {
 
-            console.log('Create new Redshift Namespace & workspace')
+            // console.log('Create new Redshift Namespace & workspace')
             /** 
              * VPC 
              */
@@ -92,7 +92,7 @@ export class RedshiftStack extends Stack {
             const REDSHIFT_DBNAME = "zeroetldb";
 
             const cfnNamespace = new redshiftserverless.CfnNamespace(this, 'RedshiftServerlesssNC', {
-                namespaceName: 'default2',
+                namespaceName: 'default',
 
                 // the properties below are optional
                 // adminPasswordSecretKmsKeyId: 'adminPasswordSecretKmsKeyId',
@@ -110,13 +110,8 @@ export class RedshiftStack extends Stack {
                 allowAllOutbound: true
             })
 
-            // redshiftSG.addIngressRule(ec2.Peer.securityGroupId(accessRdsSecurityGroup.securityGroupId), ec2.Port.tcp(5432), "Allow RDS Access");
-            // console.log(vpc.selectSubnets({subnetGroupName:'rds'}).subnets)
-
-            console.log(vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }).subnetIds)
-
             const cfnWorkgroup = new redshiftserverless.CfnWorkgroup(this, 'RedshiftWorkingGroup', {
-                workgroupName: 'redshift-zeroetl-test2',
+                workgroupName: 'redshift-zeroetl-test',
 
                 // the properties below are optional
                 baseCapacity: 8,
@@ -137,8 +132,8 @@ export class RedshiftStack extends Stack {
             this.redshiftWorkspaceName = cfnWorkgroup.workgroupName
 
         } else {
-            this.redshiftNameSpaceId = props?.redshiftNameSpaceId
-            this.redshiftWorkspaceName = props?.redshiftWorkSpace
+            this.redshiftNameSpaceId = props.redshiftNameSpaceId
+            this.redshiftWorkspaceName = props.redshiftWorkSpace
 
             /** 
              * Define Redshift Serverless workgroup parameter.
@@ -180,7 +175,6 @@ export class RedshiftStack extends Stack {
                 "redshift:DescribeInboundIntegration",
                 "redshift:DeleteInboundIntegration",
                 "redshift:AuthorizeInboundIntegration",
-
             ],
             resources: [
                 this.formatArn({
@@ -199,7 +193,7 @@ export class RedshiftStack extends Stack {
             statements: [
                 new iam.PolicyStatement({
                     principals: [
-                        new iam.ServicePrincipal("redshift:AuthorizeInboundIntegration"),
+                        new iam.ServicePrincipal("redshift.amazonaws.com"),
                     ],
                     actions: ["redshift:AuthorizeInboundIntegration"],
                     conditions: {
@@ -221,6 +215,19 @@ export class RedshiftStack extends Stack {
 
         new cr.AwsCustomResource(this, 'PutResourcePolicy', {
             onCreate: { // will also be called for a CREATE event
+                service: '@aws-sdk/client-redshift',
+                action: 'PutResourcePolicy',
+                parameters: {
+                    ResourceArn: this.formatArn({
+                        service: 'redshift-serverless',
+                        resource: 'namespace',
+                        resourceName: this.redshiftNameSpaceId
+                    }),
+                    Policy: policyJson
+                },
+                physicalResourceId: cr.PhysicalResourceId.of(Date.now().toString()), // Update physical id to always fetch the latest version
+            },
+            onUpdate: { // will also be called for a CREATE event
                 service: '@aws-sdk/client-redshift',
                 action: 'PutResourcePolicy',
                 parameters: {

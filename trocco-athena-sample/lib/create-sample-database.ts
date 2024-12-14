@@ -1,4 +1,4 @@
-import { RemovalPolicy, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
+import { Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 import * as ec2 from "aws-cdk-lib/aws-ec2";
@@ -39,7 +39,7 @@ export class SampleDataSourceForTroccoStack extends Stack {
         'dnf install mariadb105 -y'
     )
 
-    const rdsAccessInstance = new ec2.Instance(this, 'rdsAccess', {
+   new ec2.Instance(this, 'rdsAccess', {
       vpc:vpc,
       instanceType:ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, ec2.InstanceSize.MICRO),
       machineImage: new ec2.AmazonLinuxImage({ generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2023 }),
@@ -79,7 +79,7 @@ export class SampleDataSourceForTroccoStack extends Stack {
       false
     );
 
-    for(let ip of props!.troccoIPs) {
+    for(const ip of props!.troccoIPs) {
       rdssg.addIngressRule(
         ec2.Peer.ipv4(ip),
         ec2.Port.tcp(443)
