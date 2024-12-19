@@ -8,7 +8,7 @@ type Config = {
     snapshotS3BucketName: string,
     s3ExportPrefix: string,
     enableBackupExportedData: boolean,
-    loadSchedule: any // refer to Eventbridge cron format (https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-scheduled-rule-pattern.html)
+    loadSchedule: {[key:string]:string} // refer to Eventbridge cron format (https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-scheduled-rule-pattern.html)
 
 }
 export const config: Config = {

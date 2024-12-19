@@ -7,9 +7,6 @@ import {config} from '../config/config';
 
 const app = new cdk.App();
 
-var redshiftNameSpace = config.redshiftNameSpaceId;
-var redshiftWorkSpace = config.redshiftWorkgroup;
-
 const datasourceStack = new ZeroETLRDSStack(app, 'ZeroETLRDSStack', {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -33,12 +30,12 @@ const redshiftStack = new RedshiftStack(app, 'RedshiftStack', {
   },
   vpc: vpc,
   dbCluster: dbCluster,
-  redshiftNameSpaceId: redshiftNameSpace,
-  redshiftWorkSpace: redshiftWorkSpace
+  redshiftNameSpaceId: config.redshiftNameSpaceId,
+  redshiftWorkSpace: config.redshiftWorkgroup
 })
 
 
-const zeroEtlIngestionStack = new ZeroEtlIntegrationStack(app, 'ZeroEtlIntegrationStack', {
+new ZeroEtlIntegrationStack(app, 'ZeroEtlIntegrationStack', {
     env: {
         account: process.env.CDK_DEFAULT_ACCOUNT,
         region: process.env.CDK_DEFAULT_REGION,

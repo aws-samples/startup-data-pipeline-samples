@@ -1,11 +1,10 @@
 
-import { Stack, StackProps, custom_resources as cr, CfnOutput, aws_rds as classicrds } from 'aws-cdk-lib';
+import { Stack, StackProps, custom_resources as cr, CfnOutput} from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as kms from 'aws-cdk-lib/aws-kms'
 
 
 export interface ZeroETLRDSStackProps extends StackProps {
@@ -84,28 +83,18 @@ export class ZeroETLRDSStack extends Stack {
             false
         );
 
-        const ec2Role = new iam.Role(this, `instance-role`, {
-            roleName: `ssm-ec2-instance-role`,
-            assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
-            managedPolicies: [
-                iam.ManagedPolicy.fromManagedPolicyArn(this, "AmazonEC2ContainerServiceforEC2Role", "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"),
-                iam.ManagedPolicy.fromManagedPolicyArn(this, "AmazonEC2RoleforSSM", "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"),
-                iam.ManagedPolicy.fromManagedPolicyArn(this, "AmazonSSMManagedInstanceCore", "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore")
-            ]
-        })
-
         const userData = ec2.UserData.forLinux({ shebang: '#!/bin/bash' })
         userData.addCommands(
             'dnf update -y',
             'dnf install mariadb105 -y'
         )
 
-        const rdsAccessInstance = new ec2.Instance(this, 'rdsAccess', {
+        new ec2.Instance(this, 'rdsAccess', {
             vpc: vpc,
             instanceType: ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, ec2.InstanceSize.MICRO),
             machineImage: new ec2.AmazonLinuxImage({ generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2023 }),
-            role: ec2Role,
             securityGroup: accessRdsSecurityGroup,
+            ssmSessionPermissions: true,
             userData:userData
         });
 
@@ -131,7 +120,7 @@ export class ZeroETLRDSStack extends Stack {
           });
 
         if(props?.dbClusterId){
-            console.log('Retrive exist RDS Cluster...')
+            // console.log('Retrive exist RDS Cluster...')
 
             if(!(props?.dbClusterEndpointName && props?.dbPort)){
                 throw new Error("dbClusterEndpointName and dbPort must be defined."); 
@@ -159,7 +148,7 @@ export class ZeroETLRDSStack extends Stack {
                 }),
             });
         } else {
-            console.log('Create new RDS Cluster...')
+            // console.log('Create new RDS Cluster...')
 
             if(!props?.s3Bucket){
                 throw new Error('Define sampledata S3Bucket Name')

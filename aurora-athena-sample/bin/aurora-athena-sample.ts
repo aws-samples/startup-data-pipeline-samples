@@ -7,8 +7,9 @@ import { config } from '../config/config';
 
 const app = new cdk.App();
 
-var dbClusterName = config.dbClusterName;
-var clusterVpc;
+let dbClusterName = config.dbClusterName;
+let clusterVpc;
+
 if (!config.isExistDB) {
   const databaseStack = new SampleDataSourceStack(app, 'SampleDataSourceStack', {
     env: {

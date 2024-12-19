@@ -1,4 +1,4 @@
-import { RemovalPolicy, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
+import { Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 import * as ec2 from "aws-cdk-lib/aws-ec2";
@@ -33,26 +33,19 @@ export class SampleDataSourceForTroccoStack extends Stack {
       vpc,
     });
     
-    const execS3ExportRole = new iam.Role(this, "EC2InstanceRole",{
-      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com')
-    })
-
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AmazonEC2ContainerServiceforEC2Role"))
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AmazonEC2RoleforSSM"))
-    execS3ExportRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"))
-    
     const userData = ec2.UserData.forLinux({ shebang: '#!/bin/bash' })
     userData.addCommands(
         'dnf update -y',
         'dnf install mariadb105 -y'
     )
 
-    const rdsAccessInstance = new ec2.Instance(this, 'rdsAccess', {
+   new ec2.Instance(this, 'rdsAccess', {
       vpc:vpc,
       instanceType:ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, ec2.InstanceSize.MICRO),
       machineImage: new ec2.AmazonLinuxImage({ generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2023 }),
       securityGroup:accessRdsSecurityGroup,
-      userData: userData
+      userData: userData,
+      ssmSessionPermissions: true
     });
 
     
@@ -86,7 +79,7 @@ export class SampleDataSourceForTroccoStack extends Stack {
       false
     );
 
-    for(let ip of props!.troccoIPs) {
+    for(const ip of props!.troccoIPs) {
       rdssg.addIngressRule(
         ec2.Peer.ipv4(ip),
         ec2.Port.tcp(443)

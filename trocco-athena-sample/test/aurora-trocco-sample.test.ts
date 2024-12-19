@@ -1,5 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
-import { Template, Match } from 'aws-cdk-lib/assertions';
+import { Template} from 'aws-cdk-lib/assertions';
 import * as AuroraTroccoSample from '../lib/aurora-trocco-sample-stack';
 
 test('SQS Queue and SNS Topic Created', () => {
